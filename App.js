@@ -51,45 +51,21 @@ export default function App() {
 
   useEffect(() => {
     connectPrinter();
-
-    function handleIframeMessage(event){
-
-    console.log("IFRAME MESSAGE:", event.data);
-
-    if(window.ReactNativeWebView){
-      window.ReactNativeWebView.postMessage(
-        JSON.stringify(event.data)
-      );
-    }
-
-  }
-
-  window.addEventListener("message", handleIframeMessage);
-
-  return () => {
-    window.removeEventListener("message", handleIframeMessage);
-  };
-
   }, []);
 
-  const printBarcode = async (barcode) => {
+const printBarcode = async (barcode) => {
   const p = printerRef.current;
   if (!p) return;
 
-  const printBarcode = async (barcode) => {
-  const p = printerRef.current;
-  if (!p) return;
+  await p.write("\x1B\x40"); // reset printer
 
-  await p.write("\x1B\x40"); // reset
+  await p.write("\x1B\x61\x01"); // center align
 
-  await p.write("\x1D\x4C\x00\x00"); // left margin 0
+  await p.write("\x1D\x48\x00"); // angka di bawah barcode
 
-  await p.write("\x1B\x61\x01"); // center
+  await p.write("\x1D\x77\x02") // width
 
-  await p.write("\x1D\x48\x00"); // disable text from printer
-
-  await p.write("\x1D\x77\x03"); // width 3
-  await p.write("\x1D\x68\xA0"); // height
+  await p.write("\x1D\x68\x90")  // height
 
   const cmd =
     "\x1D\x6B\x49" +
@@ -98,12 +74,11 @@ export default function App() {
 
   await p.write(cmd);
 
-  await p.write("\x1B\x64\x02"); // feed 2 lines
+  await p.write("\x1B\x64\x01"); // line feed
 
   await p.write(barcode);
 
   await p.write("\n\n\n");
-};
 };
 
   const handleMessage = async (event) => {
