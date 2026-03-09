@@ -44,18 +44,66 @@ export default function App() {
 
     printerRef.current = printer;
 
+    global.printerAddress = printer.address;
+
   } catch (err) {
     console.log("CONNECT ERROR:", err);
   }
 };
 
+const reconnectPrinter = async () => {
+
+  try {
+
+    if (!global.printerAddress) return false;
+
+    const printer = await RNBluetoothClassic.connectToDevice(
+      global.printerAddress
+    );
+
+    printerRef.current = printer;
+
+    console.log("RECONNECTED");
+
+    return true;
+
+  } catch (e) {
+
+    console.log("RECONNECT FAILED", e);
+
+    return false;
+
+  }
+
+};
+
   useEffect(() => {
     connectPrinter();
+
+    const intertval = setInterval(() => {
+      if (!printerRef.current) {
+        reconnectPrinter();
+      }
+    }, 5000);
+    
+    return () => clearInterval(intertval);
   }, []);
 
-const printBarcode = async (barcode) => {
+const printBarcode = async (barcode, berat, produkNama, kategori) => {
   const p = printerRef.current;
-  if (!p) return;
+
+  if (!p) {
+    console.log("Printer not connected");
+
+    const ok = await reconnectPrinter();
+
+    if (!ok) {
+      console.log("Cannot reconnect to printer");
+      return;
+    }
+
+    p = printerRef.current;
+  }
 
   await p.write("\x1B\x40"); // reset printer
 
@@ -76,9 +124,24 @@ const printBarcode = async (barcode) => {
 
   await p.write("\x1B\x64\x01"); // line feed
 
-  await p.write(barcode);
+  await p.write("\x1D\x21\x11"); // double width & height
 
-  await p.write("\n\n\n");
+  await p.write(kategori + "-" + produkNama);
+  await p.write("\n");
+
+  await p.write("\x1B\x64\x01"); // line feed
+
+  await p.write(barcode);
+  await p.write("\n");
+
+  await p.write("\x1B\x64\x01"); // line feed
+
+  await p.write(berat + " KG");
+
+  await p.write("\n\n\n\n");
+  await p.write(" ");
+
+  await p.write("\x1D\x21\x00");
 };
 
   const handleMessage = async (event) => {
@@ -102,7 +165,7 @@ const printBarcode = async (barcode) => {
       return;
     }
 
-    await printBarcode(msg.barcode);
+    await printBarcode(msg.barcode, msg.berat, msg.produkNama, msg.kategori);
 
     console.log("BARCODE PRINTED");
 
@@ -112,7 +175,7 @@ const printBarcode = async (barcode) => {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <WebView
-        source={{ uri: "http://192.168.18.158:3000" }}
+        source={{ uri: "https://posfajarterang-3f914.web.app/" }}
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
