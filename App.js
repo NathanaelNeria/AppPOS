@@ -309,6 +309,8 @@ const ready = await checkPrinterBeforePrint();
 
     let p = printerRef.current;
 
+    const MAX = 48;
+
     if (!p) {
       const ok = await reconnectPrinter();
       if (!ok) return;
@@ -319,6 +321,11 @@ const ready = await checkPrinterBeforePrint();
         data.via && String(data.via).trim() !== ""
           ? String(data.via).toUpperCase()
           : "-";
+
+    const right = (label, value) => {
+      const space = MAX - (label.length + value.length);
+      return `${label}${" ".repeat(space > 1 ? space : 1)}${value}\n`;
+    };      
 
     await p.write("\x1B\x40"); // RESET
 
@@ -407,8 +414,10 @@ const ready = await checkPrinterBeforePrint();
     await p.write(line());
     await p.write("\x1B\x61\x00");
 
+    await p.write(right("Total Berat:", data.totalBerat + " Kg"));
+
     // ================= TOTAL =================
-    await p.write("\x1D\x21\x11");
+    await p.write("\x1D\x21\x10");
     await p.write("\n");
     if (data.mode !== "CUSTOMER") {
       await p.write(centerText(`${data.gudangAsal} -> ${data.gudangTujuan}`));
@@ -424,8 +433,12 @@ const ready = await checkPrinterBeforePrint();
 
     // ================= SIGN =================
     await p.write("\n");
-    await p.write("Pengirim,\n\n\n");
-    await p.write(`(${data.adminPengirim})\n`);
+    await p.write("Pengirim,\n\n\n\n");
+    await p.write(`(${data.adminPengirim})\n\n`);
+
+    await p.write("\n");
+    await p.write("Penerima,\n\n\n\n");
+    await p.write(`(${viaName})\n`);
 
     // ================= FOOTER =================
     await p.write("\n");
@@ -579,8 +592,6 @@ const ready = await checkPrinterBeforePrint();
   // HEADER
   await p.write(center("FAJAR TERANG"));
   await p.write(center("Ruko Auri, Jl. Anggrek IV Blok AA No.17"));
-  await p.write(center("Komplek Ruko Auri, Tanah Abang"));
-  await p.write(center("Jakarta Pusat 10250"));
   await p.write(center("Telp: 0811-239-191/0899-9522-200"));
   await p.write("\n");
 
@@ -633,26 +644,27 @@ const ready = await checkPrinterBeforePrint();
     }
   }
 
+  await p.write(right("Total Berat:", data.total_berat.toFixed(2) + " Kg"));
+  await p.write(lineStruk());
+
   // TOTAL SECTION
   const subtotal = Number(data.subtotal) || 0;
   const ongkir = Number(data.ongkir) || 0;
   const potongan = Number(data.potongan) || 0;
   const totalFinal = subtotal + ongkir - potongan;
 
-  await p.write(right("Subtotal", cleanRp(subtotal)));
+  await p.write(right("Subtotal:", cleanRp(subtotal)));
   if (ongkir > 0){
-    await p.write(right("Ongkir", cleanRp(ongkir)));
+    await p.write(right("Ongkir:", cleanRp(ongkir)));
   }
   if (potongan > 0){
-    await p.write(right("Potongan", cleanRp(potongan)));
+    await p.write(right("Potongan:", cleanRp(potongan)));
   }
   await p.write(lineStruk());
   await p.write(boldOn);
   await p.write(right("TOTAL:", cleanRp(totalFinal)));
   await p.write(boldOff);
 
-  await p.write(right("Dibayar:", cleanRp(data.jumlah_dibayar)));
-  await p.write(right("Kembalian:", cleanRp(data.kembalian)));
   await p.write(right("Metode Pembayaran:", safeText(data.metodePembayaran)));
 
   await p.write(lineStruk());
@@ -697,8 +709,8 @@ const ready = await checkPrinterBeforePrint();
     <StatusBar hidden />
 
     <WebView
-      source={{ uri: "https://posfajarterang-3f914.web.app/" }}
-      // source={{ uri: "192.168.18.20:3000" }}
+      // source={{ uri: "https://posfajarterang-3f914.web.app/" }}
+      source={{ uri: "192.168.18.158:3000" }}
       onMessage={handleMessage}
       javaScriptEnabled
       domStorageEnabled
